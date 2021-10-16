@@ -8,6 +8,7 @@ from queue import Queue
 import time
 from videoData import VideoFile
 import pymongo
+from videoDownload import download_video
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -24,7 +25,8 @@ def converter_thread_function(q):
             # no need
             v_file.change_status(VideoFile.PROCESSING_STATUS)
             update_db_status(v_file.name, VideoFile.PROCESSING_STATUS)
-            rs = convert_video(v_file.name, str(count) + v_file.quality + v_file.name)
+            download_video(v_file.location, v_file.name)
+            rs = convert_video(v_file.name, str(count) + v_file.quality + '_' + v_file.name)
             v_file.change_status(VideoFile.DONE_STATUS)
             update_db_status(v_file.name, VideoFile.DONE_STATUS)
             print(rs)
@@ -39,8 +41,8 @@ def update_db_status(file_name, status):
     mydb = myclient["videodatabase"]
     mycol = mydb["convertions"]
 
-    myquery = { "name": f"{file_name}" }
-    newvalues = { "$set": { "status": f"{status}" } }
+    myquery = {"name": f"{file_name}" }
+    newvalues = {"$set": {"status": f"{status}"}}
 
     mycol.update_one(myquery, newvalues)
 
@@ -71,12 +73,12 @@ def api_convert():
 
 @app.route('/api/v1/test', methods=['GET'])
 def api_qtest():
-    if 'input' in request.args:
+    if 'input' and 'id' in request.args:
         inp = str(request.args['input'])
+        id = str(request.args['id'])
     else:
         return "Error: No input field provided. Please specify an input."
-    file = VideoFile(inp, "C:/Exptr", "360")
-
+    file = VideoFile(inp, id, "360")
 
     # data base insertion
     myclient = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -87,6 +89,7 @@ def api_qtest():
     file.id = id
     queue.put_nowait(file)
     return "file added to queue"
+
 
 @app.route('/api/v1/vtest', methods=['GET'])
 def api_vtest():
@@ -99,7 +102,7 @@ def api_vtest():
     list_cur = list(x)
 
     # Converting to the JSON
-    json_data = dumps(list_cur, indent = 3)
+    json_data = dumps(list_cur, indent=2)
     return json_data
 
 
