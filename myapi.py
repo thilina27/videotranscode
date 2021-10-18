@@ -9,14 +9,17 @@ import time
 from videoData import VideoFile
 import pymongo
 from videoDownload import download_video
+import configparser
+from databaseAccess import DataBase
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
 queue = Queue()
+database = None
 
 
-def converter_thread_function(q):
+def converter_thread_function(q, db):
     count = 0
     logging.info("Thread %s: starting")
     while True:
@@ -24,31 +27,15 @@ def converter_thread_function(q):
             v_file = q.get()
             # no need
             v_file.change_status(VideoFile.PROCESSING_STATUS)
-            update_db_status(v_file.name, VideoFile.PROCESSING_STATUS)
+            database.update_db_status(v_file.name, VideoFile.PROCESSING_STATUS)
             download_video(v_file.location, v_file.name)
             rs = convert_video(v_file.name, str(count) + v_file.quality + '_' + v_file.name)
             v_file.change_status(VideoFile.DONE_STATUS)
-            update_db_status(v_file.name, VideoFile.DONE_STATUS)
+            database.update_db_status(v_file.name, VideoFile.DONE_STATUS)
             print(rs)
             count += 1
         print("nothing to do")
         time.sleep(10)
-
-
-# data base updates
-def update_db_status(file_name, status):
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
-    mydb = myclient["videodatabase"]
-    mycol = mydb["convertions"]
-
-    myquery = {"name": f"{file_name}" }
-    newvalues = {"$set": {"status": f"{status}"}}
-
-    mycol.update_one(myquery, newvalues)
-
-
-x = threading.Thread(target=converter_thread_function, args=(queue,))
-x.start()
 
 
 @app.route('/', methods=['GET'])
@@ -71,6 +58,7 @@ def api_convert():
     return result
 
 
+# http://127.0.0.1:5000/api/v1/test?input=inp.mp4&id=CkSS7IuGRKo
 @app.route('/api/v1/test', methods=['GET'])
 def api_qtest():
     if 'input' and 'id' in request.args:
@@ -81,24 +69,18 @@ def api_qtest():
     file = VideoFile(inp, id, "360")
 
     # data base insertion
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
-    mydb = myclient["videodatabase"]
-    mycol = mydb["convertions"]
-    mydict = {"name": f"{file.name}", "status": f"{VideoFile.ADDED_STATUS}"}
-    id = mycol.insert_one(mydict)
+    id = database.insert(file.name)
     file.id = id
     queue.put_nowait(file)
     return "file added to queue"
 
 
+# http://127.0.0.1:5000/api/v1/vtest
 @app.route('/api/v1/vtest', methods=['GET'])
 def api_vtest():
 
     # data base view
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
-    mydb = myclient["videodatabase"]
-    mycol = mydb["convertions"]
-    x = mycol.find({},{ "_id": 0, "name": 1, "status": 1 })
+    x = database.get_data()
     list_cur = list(x)
 
     # Converting to the JSON
@@ -106,4 +88,20 @@ def api_vtest():
     return json_data
 
 
-app.run()
+if __name__ == "__main__":
+
+    # initialization
+    config = configparser.ConfigParser()
+    config.read('config.cfg')
+
+    # database
+    db_cfg = config['DATABASE']
+    db_path = db_cfg['DBPath']
+    db_name = db_cfg['DBName']
+    db_collection = db_cfg['DBTable']
+
+    database = DataBase(db_path, db_name, db_collection)
+
+    converter_thread = threading.Thread(target=converter_thread_function, args=(queue, database,))
+    converter_thread.start()
+    app.run()
