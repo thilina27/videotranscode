@@ -7,10 +7,11 @@ from convert import convert_video
 from queue import Queue
 import time
 from videoData import VideoFile
-import pymongo
 from videoDownload import download_video
 import configparser
 from databaseAccess import DataBase
+from util import get_table
+
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -27,14 +28,14 @@ def converter_thread_function(q, db):
             v_file = q.get()
             # no need
             v_file.change_status(VideoFile.PROCESSING_STATUS)
-            database.update_db_status(v_file.name, VideoFile.PROCESSING_STATUS)
+            db.update_db_status(v_file.name, VideoFile.PROCESSING_STATUS)
             download_video(v_file.location, v_file.name)
             rs = convert_video(v_file.name, str(count) + v_file.quality + '_' + v_file.name)
             v_file.change_status(VideoFile.DONE_STATUS)
-            database.update_db_status(v_file.name, VideoFile.DONE_STATUS)
-            print(rs)
+            db.update_db_status(v_file.name, VideoFile.DONE_STATUS)
+            # print(rs)
             count += 1
-        print("nothing to do")
+        # print("nothing to do")
         time.sleep(10)
 
 
@@ -63,14 +64,14 @@ def api_convert():
 def api_qtest():
     if 'input' and 'id' in request.args:
         inp = str(request.args['input'])
-        id = str(request.args['id'])
+        db_id = str(request.args['id'])
     else:
         return "Error: No input field provided. Please specify an input."
-    file = VideoFile(inp, id, "360")
+    file = VideoFile(inp, db_id, "360")
 
     # data base insertion
-    id = database.insert(file.name)
-    file.id = id
+    db_id = database.insert(file.name)
+    file.id = db_id
     queue.put_nowait(file)
     return "file added to queue"
 
@@ -78,14 +79,7 @@ def api_qtest():
 # http://127.0.0.1:5000/api/v1/vtest
 @app.route('/api/v1/vtest', methods=['GET'])
 def api_vtest():
-
-    # data base view
-    x = database.get_data()
-    list_cur = list(x)
-
-    # Converting to the JSON
-    json_data = dumps(list_cur, indent=2)
-    return json_data
+    return get_table(database)
 
 
 if __name__ == "__main__":

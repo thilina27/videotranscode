@@ -14,17 +14,24 @@ class DataBase:
     def insert(self, file_name):
         db = self.db_client[self.db_name]
         col = db[self.db_collection]
-        db_dict = {"name": f"{file_name}", "status": f"{VideoFile.ADDED_STATUS}"}
+        db_dict = {"name": f"{file_name}", "status": f"{VideoFile.ADDED_STATUS_TEXT}"}
         return col.insert_one(db_dict)
 
     def get_data(self):
         db = self.db_client[self.db_name]
         col = db[self.db_collection]
-        return col.find({}, {"_id": 0, "name": 1, "status": 1})
+        return col
 
     def update_db_status(self, file_name, status):
         db = self.db_client[self.db_name]
         col = db[self.db_collection]
-        query = {"name": f"{file_name}" }
-        new_values = {"$set": {"status": f"{status}"}}
+        query = {"name": f"{file_name}"}
+
+        text_status = VideoFile.ADDED_STATUS_TEXT
+        if status == VideoFile.PROCESSING_STATUS:
+            text_status = VideoFile.PROCESSING_STATUS_TEXT
+        elif status == VideoFile.DONE_STATUS:
+            text_status = VideoFile.DONE_STATUS_TEXT
+
+        new_values = {"$set": {"status": f"{text_status}"}}
         col.update_one(query, new_values)

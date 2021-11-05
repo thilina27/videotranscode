@@ -31,15 +31,15 @@ def t2():
 #y = threading.Thread(target=t2, args=())
 #x.start()
 #y.start()
-'''
+
 myclient = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = myclient["videodatabase"]
 mycol = mydb["convertions"]
 x = mycol.delete_many({})
 for x in mycol.find():
     print(x)
-'''
 
+'''
 import configparser
 
 config = configparser.ConfigParser()
@@ -48,3 +48,4 @@ db_cfg = config['DATABASE']
 
 print(db_cfg['DBName'])
 
+'''

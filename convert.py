@@ -1,6 +1,7 @@
 import os
 
 
+# todo : add linux stuff if needed (test)
 def convert_video(input_file, output_file="output.mp4", video_quality="360"):
 
     """ A simple function that convert given video file to designated quality
