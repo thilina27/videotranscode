@@ -1,3 +1,4 @@
+import os
 import threading
 import logging
 import flask
@@ -11,7 +12,7 @@ from videoDownload import download_video
 import configparser
 from databaseAccess import DataBase
 from util import get_table
-
+from minio_access import MinIoS3
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -20,22 +21,40 @@ queue = Queue()
 database = None
 
 
-def converter_thread_function(q, db):
-    count = 0
+def converter_thread_function(q, db, minio):
     logging.info("Thread %s: starting")
     while True:
         if not q.empty():
+            # get file from queue
             v_file = q.get()
-            # no need
+            # update status
             v_file.change_status(VideoFile.PROCESSING_STATUS)
             db.update_db_status(v_file.name, VideoFile.PROCESSING_STATUS)
-            download_video(v_file.location, v_file.name)
-            rs = convert_video(v_file.name, str(count) + v_file.quality + '_' + v_file.name)
+            # download video from s3 to convert
+            minio.get_file(v_file.name)
+
+            # convention based on current video quality
+            to_convert = []
+            converted_files = []
+            if v_file.quality == "480p":
+                to_convert.append("240")
+                to_convert.append("360")
+            else:
+                to_convert.append("240")
+            for qlt in to_convert:
+                new_file_name = qlt + '_' + v_file.name
+                rs = convert_video(v_file.name, new_file_name, qlt)
+                converted_files.append(new_file_name)
+
+            # upload all converted files
+            for f in converted_files:
+                minio.put_file(f)
+                os.remove(f)
+            os.remove(v_file.name)
             v_file.change_status(VideoFile.DONE_STATUS)
             db.update_db_status(v_file.name, VideoFile.DONE_STATUS)
             # print(rs)
-            count += 1
-        # print("nothing to do")
+        print("nothing to do")
         time.sleep(10)
 
 
@@ -59,15 +78,15 @@ def api_convert():
     return result
 
 
-# http://127.0.0.1:5000/api/v1/test?input=inp.mp4&id=CkSS7IuGRKo
+# http://127.0.0.1:5000/api/v1/test?input=inp.mp4&q=480p
 @app.route('/api/v1/test', methods=['GET'])
 def api_qtest():
-    if 'input' and 'id' in request.args:
+    if 'input' and 'q' in request.args:
         inp = str(request.args['input'])
-        db_id = str(request.args['id'])
+        qlt = str(request.args['q'])
     else:
         return "Error: No input field provided. Please specify an input."
-    file = VideoFile(inp, db_id, "360")
+    file = VideoFile(inp, qlt)
 
     # data base insertion
     db_id = database.insert(file.name)
@@ -94,8 +113,14 @@ if __name__ == "__main__":
     db_name = db_cfg['DBName']
     db_collection = db_cfg['DBTable']
 
+    # minio
+    minio_cfg = config['MINIO']
+    minio_endpoint = minio_cfg['Endpoint']
+    minio_accessKey = minio_cfg['AccessKey']
+    minio_secretKey = minio_cfg['SecretKey']
+    print(minio_endpoint)
     database = DataBase(db_path, db_name, db_collection)
-
-    converter_thread = threading.Thread(target=converter_thread_function, args=(queue, database,))
+    minio_s3 = MinIoS3(minio_endpoint, minio_accessKey, minio_secretKey)
+    converter_thread = threading.Thread(target=converter_thread_function, args=(queue, database, minio_s3))
     converter_thread.start()
     app.run()

@@ -2,9 +2,7 @@ import pymongo
 import threading
 
 
-myclient = pymongo.MongoClient("mongodb://localhost:27017/")
-mydb = myclient["mydatabase"]
-mycol = mydb["customers"]
+
 
 
 def t1():
@@ -32,6 +30,12 @@ def t2():
 #x.start()
 #y.start()
 
+
+# clear db
+
+
+
+
 myclient = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = myclient["videodatabase"]
 mycol = mydb["convertions"]
@@ -48,4 +52,16 @@ db_cfg = config['DATABASE']
 
 print(db_cfg['DBName'])
 
+'''
+
+'''
+# test min.io access
+
+from minio_access import MinIoS3
+
+minioc = MinIoS3()
+
+minioc.get_file("inp.mp4")
+
+minioc.put_file("my.mp4")
 '''

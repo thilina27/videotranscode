@@ -7,9 +7,8 @@ class VideoFile:
     PROCESSING_STATUS_TEXT = "Processing video file"
     DONE_STATUS_TEXT = "Successfully converted"
 
-    def __init__(self, name, location, quality):
+    def __init__(self, name, quality):
         self.name = name
-        self.location = location
         self.quality = quality
         self.status = self.ADDED_STATUS
 
