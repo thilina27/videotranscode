@@ -4,11 +4,9 @@ from minio import Minio
 
 class MinIoS3:
 
-    def __init__(self, endpoint="localhost:9000",
-                 access_key="minioadmin", secret_key="minioadmin", bucket="videos"):
+    def __init__(self, endpoint, access_key, secret_key, bucket):
         self.bucket = bucket
         self.client = Minio(
-
             endpoint=endpoint,
             access_key=access_key,
             secret_key=secret_key,
@@ -18,6 +16,7 @@ class MinIoS3:
     def get_file(self, file_name):
         try:
             self.client.fget_object(self.bucket, file_name, file_name)
+        # todo : remove broad exception
         except Exception as e:
             print("Error occurred")
 
@@ -25,3 +24,5 @@ class MinIoS3:
         result = self.client.fput_object(
             self.bucket, file_name, file_name,
         )
+
+        return result

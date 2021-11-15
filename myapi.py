@@ -3,12 +3,10 @@ import threading
 import logging
 import flask
 from flask import request
-from bson.json_util import dumps, loads
 from convert import convert_video
 from queue import Queue
 import time
 from videoData import VideoFile
-from videoDownload import download_video
 import configparser
 from databaseAccess import DataBase
 from util import get_table
@@ -118,9 +116,10 @@ if __name__ == "__main__":
     minio_endpoint = minio_cfg['Endpoint']
     minio_accessKey = minio_cfg['AccessKey']
     minio_secretKey = minio_cfg['SecretKey']
-    print(minio_endpoint)
+    minio_bucket = minio_cfg['Bucket']
+
     database = DataBase(db_path, db_name, db_collection)
-    minio_s3 = MinIoS3(minio_endpoint, minio_accessKey, minio_secretKey)
+    minio_s3 = MinIoS3(minio_endpoint, minio_accessKey, minio_secretKey, minio_bucket)
     converter_thread = threading.Thread(target=converter_thread_function, args=(queue, database, minio_s3))
     converter_thread.start()
     app.run()
