@@ -14,7 +14,8 @@ from minioAccess import MinIoS3
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = False
-
+# todo : move to cfg
+# API host information
 app_host = "0.0.0.0"
 app_port = 5000
 
