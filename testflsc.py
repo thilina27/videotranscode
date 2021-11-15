@@ -1,8 +1,7 @@
 import pymongo
 import threading
 
-
-
+import convert
 
 
 def t1():
@@ -34,7 +33,7 @@ def t2():
 # clear db
 
 
-
+'''
 
 myclient = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = myclient["videodatabase"]
@@ -42,7 +41,7 @@ mycol = mydb["convertions"]
 x = mycol.delete_many({})
 for x in mycol.find():
     print(x)
-
+'''
 '''
 import configparser
 
@@ -65,3 +64,5 @@ minioc.get_file("inp.mp4")
 
 minioc.put_file("my.mp4")
 '''
+
+convert.convert_video("test.mp4")
