@@ -10,10 +10,13 @@ from videoData import VideoFile
 import configparser
 from databaseAccess import DataBase
 from util import get_table
-from minio_access import MinIoS3
+from minioAccess import MinIoS3
 
 app = flask.Flask(__name__)
-app.config["DEBUG"] = True
+app.config["DEBUG"] = False
+
+app_host = "0.0.0.0"
+app_port = 5000
 
 queue = Queue()
 database = None
@@ -60,7 +63,7 @@ def converter_thread_function(q, db, minio):
 def home():
     return "<h1>Video Transcoding API</h1><p> This a simple video transcoding api with ffmpeg and flask" \
            "</br>" \
-           "Use homepage/api/v1/convert?input=file to convert.</p>"
+           "Use homepage/api/v1/convert?input=file to convert&q=current file quality (480p).</p>"
 
 
 @app.route('/api/v1/convert', methods=['GET'])
@@ -122,4 +125,4 @@ if __name__ == "__main__":
     minio_s3 = MinIoS3(minio_endpoint, minio_accessKey, minio_secretKey, minio_bucket)
     converter_thread = threading.Thread(target=converter_thread_function, args=(queue, database, minio_s3))
     converter_thread.start()
-    app.run()
+    app.run(host=app_host, port=app_port)
